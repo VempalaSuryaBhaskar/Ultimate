@@ -107,15 +107,11 @@ pipeline {
     post {
 
         success {
-            echo '================================='
             echo 'PIPELINE SUCCESSFUL'
-            echo '================================='
         }
 
         failure {
-            echo '================================='
             echo 'PIPELINE FAILED'
-            echo '================================='
         }
 
         always {
