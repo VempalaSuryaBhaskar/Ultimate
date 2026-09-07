@@ -92,14 +92,17 @@ pipeline {
                   withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
                       sh '''
                           apk add --no-cache git
-                          git --version
-                          git config user.email "vempalasvdbhaskar@gmail.com"
-                          git config user.name "VempalaSuryaBhaskar"
-                          BUILD_NUMBER=${BUILD_NUMBER}
-                          sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" manifests/deployment.yml
-                          git add manifests/deployment.yml
-                          git commit -m "Update deployment image to version ${BUILD_NUMBER}"
-                          git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
+                           git --version
+                           
+                           git config user.email "vempalasvdbhaskar@gmail.com"
+                           git config user.name "VempalaSuryaBhaskar"
+                           
+                           sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" manifests/deployment.yml
+                           
+                           git add manifests/deployment.yml
+                           git commit -m "Update deployment image to version ${BUILD_NUMBER}"
+                           
+                           git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git HEAD:main
                       '''
                   }
               }
