@@ -91,6 +91,8 @@ pipeline {
               steps {
                   withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
                       sh '''
+                          apk add --no-cache git
+                          git --version
                           git config user.email "vempalasvdbhaskar@gmail.com"
                           git config user.name "VempalaSuryaBhaskar"
                           BUILD_NUMBER=${BUILD_NUMBER}
