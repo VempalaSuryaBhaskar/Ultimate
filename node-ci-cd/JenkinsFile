@@ -44,82 +44,78 @@ pipeline {
             }
         }
       stage('Static Code Analysis') {
+    environment {
+        SONAR_URL = 'http://13.63.56.17:9000'
+    }
 
-          environment {
-              SONAR_URL = 'http://13.63.56.17:9000'
-          }
-      
-          steps {
-      
-              withCredentials([
-                  string(
-                      credentialsId: 'sonarqube',
-                      variable: 'SONAR_AUTH_TOKEN'
-                  )
-              ]) {
-      
-                  dir('node-ci-cd') {
-      
-                      sh '''
-                          echo "================================="
-                          echo "Checking npx"
-                          echo "================================="
-      
-                          which npx
-                          npx --version
-      
-                          echo "================================="
-                          echo "Downloading SonarScanner"
-                          echo "================================="
-      
-                          npx --yes sonar-scanner --version || true
-      
-                          echo "================================="
-                          echo "Finding SonarScanner"
-                          echo "================================="
-      
-                          SCANNER_PATH=$(find /root/.npm/_npx -type f -path "*/sonar-scanner/bin/sonar-scanner" 2>/dev/null | head -1)
-      
-                          echo "Scanner path:"
-                          echo "$SCANNER_PATH"
-      
-                          if [ -z "$SCANNER_PATH" ]; then
-                              echo "ERROR: SonarScanner was not downloaded"
-                              exit 1
-                          fi
-      
-                          echo "================================="
-                          echo "Before chmod"
-                          echo "================================="
-      
-                          ls -l "$SCANNER_PATH"
-      
-                          echo "================================="
-                          echo "Giving execute permission"
-                          echo "================================="
-      
-                          chmod +x "$SCANNER_PATH"
-      
-                          echo "================================="
-                          echo "After chmod"
-                          echo "================================="
-      
-                          ls -l "$SCANNER_PATH"
-      
-                          echo "================================="
-                          echo "Running SonarScanner"
-                          echo "================================="
-      
-                          "$SCANNER_PATH" \
-                              -Dsonar.projectKey=node-ci-cd \
-                              -Dsonar.sources=. \
-                              -Dsonar.host.url=${SONAR_URL} \
-                              -Dsonar.token=${SONAR_AUTH_TOKEN}
-                      '''
-                  }
-              }
-          }
-      }
+    steps {
+        withCredentials([
+            string(
+                credentialsId: 'sonarqube',
+                variable: 'SONAR_AUTH_TOKEN'
+            )
+        ]) {
+            dir('node-ci-cd') {
+                sh '''
+                    echo "================================="
+                    echo "Checking Node and NPM"
+                    echo "================================="
+                    node --version
+                    npm --version
+
+                    echo "================================="
+                    echo "Checking npx"
+                    echo "================================="
+                    which npx
+                    npx --version
+
+                    echo "================================="
+                    echo "Downloading SonarScanner"
+                    echo "================================="
+
+                    npx --yes sonar-scanner --version || true
+
+                    echo "================================="
+                    echo "Finding SonarScanner"
+                    echo "================================="
+
+                    SCANNER_PATH=$(find /root/.npm/_npx \
+                        -type f \
+                        -path '*/sonar-scanner/bin/sonar-scanner' \
+                        | head -1)
+
+                    echo "Scanner path:"
+                    echo "$SCANNER_PATH"
+
+                    echo "================================="
+                    echo "Permissions"
+                    echo "================================="
+
+                    ls -l "$SCANNER_PATH"
+
+                    echo "================================="
+                    echo "SonarScanner script around line 59"
+                    echo "================================="
+
+                    nl -ba "$SCANNER_PATH" | sed -n '50,65p'
+
+                    echo "================================="
+                    echo "File information"
+                    echo "================================="
+
+                    file "$SCANNER_PATH"
+
+                    echo "================================="
+                    echo "Java check"
+                    echo "================================="
+
+                    which java || true
+                    java -version || true
+                '''
+            }
+        }
+    }
+}
         stage('Build and Push Docker Image') {
 
             environment {
