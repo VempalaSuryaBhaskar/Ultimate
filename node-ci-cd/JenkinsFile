@@ -1,81 +1,146 @@
 pipeline {
+
   agent {
     docker {
       image 'node:24.11.0-alpine'
-      args '--user root -v /var/run/docker.sock:/var/run/docker.sock' // mount Docker socket to access the host's Docker daemon
+      args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
     }
   }
+
   stages {
+
     stage('Checkout') {
       steps {
-        sh 'echo passed'
-        //git branch: 'main', url: 'https://github.com/VempalaSuryaBhaskar/Ultimate'
+        sh 'echo "Checkout completed"'
+        sh 'ls -la'
       }
     }
+
     stage('Build and Test') {
-          steps {
-              dir('node-ci-cd') {
-                  sh 'node --version'
-                  sh 'npm --version'
-                  sh 'npm install'
-              }
-          }
+      steps {
+        dir('node-ci-cd') {
+          sh '''
+            echo "Node version:"
+            node --version
+
+            echo "NPM version:"
+            npm --version
+
+            echo "Installing dependencies..."
+            npm install
+
+            echo "Running tests..."
+            npm test
+          '''
+        }
+      }
+    }
+
+    stage('Static Code Analysis') {
+
+      environment {
+        SONAR_URL = "http://13.63.56.17:9000"
       }
 
-      stage('Static Code Analysis') {
-          environment {
-              SONAR_URL = "http://13.63.56.17:9000"
+      steps {
+
+        withCredentials([
+          string(
+            credentialsId: 'sonarqube',
+            variable: 'SONAR_AUTH_TOKEN'
+          )
+        ]) {
+
+          /*
+           * Do NOT use:
+           *
+           * npx sonar-scanner
+           *
+           * because your current pipeline is failing there.
+           */
+
+          dir('node-ci-cd') {
+
+            sh '''
+              sonar-scanner \
+                -Dsonar.projectKey=node-ci-cd \
+                -Dsonar.sources=. \
+                -Dsonar.host.url=${SONAR_URL} \
+                -Dsonar.token=${SONAR_AUTH_TOKEN}
+            '''
           }
-          steps {
-              withCredentials([
-                  string( credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN' )
-              ]) {
-            dir('node-ci-cd') {
-                  sh '''
-                      npx sonar-scanner \
-                        -Dsonar.projectKey=node-ci-cd \
-                        -Dsonar.sources=. \
-                        -Dsonar.host.url=${SONAR_URL} \
-                        -Dsonar.token=${SONAR_AUTH_TOKEN}
-                  '''
-                }
-            }
-          }
+        }
+      }
     }
+
     stage('Build and Push Docker Image') {
+
       environment {
         DOCKER_IMAGE = "suryabhaskarvempala/ultimate-cicd:${BUILD_NUMBER}"
-        // DOCKERFILE_LOCATION = "Ultimate/node-ci-cd/Dockerfile"
-        REGISTRY_CREDENTIALS = credentials('docker-cred')
       }
+
       steps {
+
         script {
-            sh 'cd node-ci-cd && docker build -t ${DOCKER_IMAGE} .'
+
+          dir('node-ci-cd') {
+
+            sh '''
+              echo "Building Docker image..."
+              docker build -t ${DOCKER_IMAGE} .
+            '''
+
             def dockerImage = docker.image("${DOCKER_IMAGE}")
-            docker.withRegistry('https://index.docker.io/v1/', "docker-cred") {
-                dockerImage.push()
+
+            docker.withRegistry(
+              'https://index.docker.io/v1/',
+              'docker-cred'
+            ) {
+
+              dockerImage.push()
             }
+          }
         }
       }
     }
+
     stage('Update Deployment File') {
-        environment {
-            GIT_REPO_NAME = "Ultimate"
-            GIT_USER_NAME = "VempalaSuryaBhaskar"
+
+      environment {
+        GIT_REPO_NAME = "Ultimate"
+        GIT_USER_NAME = "VempalaSuryaBhaskar"
+      }
+
+      steps {
+
+        withCredentials([
+          string(
+            credentialsId: 'github',
+            variable: 'GITHUB_TOKEN'
+          )
+        ]) {
+
+          sh '''
+            git config user.email "vempalasvdbhaskar@gmail.com"
+            git config user.name "VempalaSuryaBhaskar"
+
+            echo "Updating Kubernetes deployment image..."
+
+            sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" \
+              manifests/deployment.yml
+
+            git add manifests/deployment.yml
+
+            git commit \
+              -m "Update deployment image to version ${BUILD_NUMBER}" \
+              || true
+
+            git push \
+              https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git \
+              HEAD:main
+          '''
         }
-        steps {
-            withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
-                sh '''
-                    git config user.email "vempalasvdbhaskar@gmail.com"
-                    git config user.name "VempalaSuryaBhaskar"
-                    BUILD_NUMBER=${BUILD_NUMBER}
-                    sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" manifests/deployment.yml
-                    git add manifests/deployment.yml
-                    git commit -m "Update deployment image to version ${BUILD_NUMBER}"
-                    git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
-                '''
-            }
-        }
+      }
     }
   }
 }
