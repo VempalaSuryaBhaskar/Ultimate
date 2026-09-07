@@ -1,8 +1,8 @@
 pipeline {
 
-    agent {
+   agent {
         docker {
-            image 'suryabhaskarvempala/node-sonar-agent:v1'
+            image 'node:24.11.0-alpine'
             args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
         }
     }
@@ -43,35 +43,64 @@ pipeline {
                 }
             }
         }
-
         stage('Static Code Analysis') {
-
             environment {
                 SONAR_URL = 'http://13.63.56.17:9000'
             }
-
+        
             steps {
-
                 withCredentials([
                     string(
                         credentialsId: 'sonarqube',
                         variable: 'SONAR_AUTH_TOKEN'
                     )
                 ]) {
-
                     dir('node-ci-cd') {
-
                         sh '''
                             echo "================================="
-                            echo "SonarScanner version"
+                            echo "Checking npx"
                             echo "================================="
-                            sonar-scanner --version
-
+        
+                            which npx
+        
                             echo "================================="
-                            echo "Running SonarQube analysis"
+                            echo "Running SonarScanner through npx"
                             echo "================================="
-
-                            sonar-scanner \
+        
+                            npx sonar-scanner --version
+        
+                            echo "================================="
+                            echo "Finding SonarScanner executable"
+                            echo "================================="
+        
+                            find ~/.npm -type f -name "sonar-scanner" 2>/dev/null || true
+        
+                            echo "================================="
+                            echo "Checking SonarScanner permissions"
+                            echo "================================="
+        
+                            SCANNER_PATH=$(find ~/.npm -type f -name "sonar-scanner" 2>/dev/null | head -1)
+        
+                            if [ -n "$SCANNER_PATH" ]; then
+                                echo "Scanner found at:"
+                                echo "$SCANNER_PATH"
+        
+                                ls -l "$SCANNER_PATH"
+        
+                                echo "Giving execute permission..."
+                                chmod +x "$SCANNER_PATH"
+        
+                                echo "Permission after chmod:"
+                                ls -l "$SCANNER_PATH"
+                            else
+                                echo "SonarScanner executable was not found in ~/.npm"
+                            fi
+        
+                            echo "================================="
+                            echo "Running SonarQube Analysis"
+                            echo "================================="
+        
+                            npx sonar-scanner \
                                 -Dsonar.projectKey=node-ci-cd \
                                 -Dsonar.sources=. \
                                 -Dsonar.host.url=${SONAR_URL} \
@@ -81,7 +110,6 @@ pipeline {
                 }
             }
         }
-
         stage('Build and Push Docker Image') {
 
             environment {
