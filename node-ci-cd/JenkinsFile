@@ -70,9 +70,11 @@ pipeline {
                     sh '''
                         apk add --no-cache git
 
+                        echo "Cleaning old GitOps repository..."
+                        rm -rf gitops
+                        
                         echo "Cloning GitOps repository..."
-
-                        git clone https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git gitops
+                        git clone https://$GITHUB_TOKEN@github.com/VempalaSuryaBhaskar/Ultimate-GitOps.git gitops
 
                         echo "GitOps repository cloned"
 
