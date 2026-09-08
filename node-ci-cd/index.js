@@ -21,16 +21,16 @@ app.get('/users', (req, res) => {
 
 //commented the below code to test the CI/CD pipeline
 // nice one 
-app.get('/users/:id',(req,res)=>{
-    const userId = parseInt(req.params.id);
+// app.get('/users/:id',(req,res)=>{
+//     const userId = parseInt(req.params.id);
 
-    const user = users.find(u => u.id === userId);
+//     const user = users.find(u => u.id === userId);
     
-    if(!user){
-        return res.status(404).json({ message: 'User not found'});
-    }
-    return res.status(200).json({ user });
-})
+//     if(!user){
+//         return res.status(404).json({ message: 'User not found'});
+//     }
+//     return res.status(200).json({ user });
+// })
 
 app.listen(4000, () => {
     console.log('Server is running on port 4000');
