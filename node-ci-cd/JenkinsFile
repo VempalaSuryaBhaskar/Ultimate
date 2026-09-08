@@ -57,24 +57,29 @@ pipeline {
             }
         }
 
-        stage('Update Deployment File') {
+        stage('Update GitOps Repository') {
             environment {
-                GIT_REPO_NAME = "Ultimate"
+                GIT_REPO_NAME = "Ultimate-GitOps"
                 GIT_USER_NAME = "VempalaSuryaBhaskar"
             }
+
             steps {
                 withCredentials([
-                    string( credentialsId: 'github', variable: 'GITHUB_TOKEN' )
+                    string(credentialsId: 'github', variable: 'GITHUB_TOKEN')
                 ]) {
                     sh '''
                         apk add --no-cache git
-                        cd "$WORKSPACE"
+
+                        echo "Cloning GitOps repository..."
+
+                        git clone https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git gitops
+
+                        echo "GitOps repository cloned"
+
+                        cd gitops
 
                         echo "Current directory:"
                         pwd
-
-                        echo "Adding Git safe directory:"
-                        git config --global --add safe.directory "$WORKSPACE"
 
                         echo "Git status:"
                         git status
@@ -83,8 +88,12 @@ pipeline {
                         git config user.email "vempalasvdbhaskar@gmail.com"
                         git config user.name "VempalaSuryaBhaskar"
 
-                        echo "Updating deployment image:"
-                        sed -i -E "s|(suryabhaskarvempala/ultimate-cicd:)[^ ]+|\1${BUILD_NUMBER}|g" manifests/deployment.yml
+                        echo "Updating deployment image..."
+
+                        sed -i -E "s#suryabhaskarvempala/ultimate-cicd:[0-9]+#suryabhaskarvempala/ultimate-cicd:${BUILD_NUMBER}#g" manifests/deployment.yml
+
+                        echo "Updated deployment:"
+                        cat manifests/deployment.yml
 
                         echo "Git diff:"
                         git diff
@@ -96,9 +105,7 @@ pipeline {
                         git commit -m "Update deployment image to version ${BUILD_NUMBER}"
 
                         echo "Pushing changes:"
-                        git push \
-                            https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git \
-                            HEAD:main
+                        git push origin main
                     '''
                 }
             }
