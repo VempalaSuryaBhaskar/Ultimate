@@ -1,0 +1,34 @@
+ stage('Static Code Analysis') {
+            environment {
+                SONAR_URL = 'http://13.53.217.85:9000'
+            }
+            steps {
+                withCredentials([
+                    string( credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN' )
+                ]) {
+                    dir('node-ci-cd') {
+                        sh '''
+                            echo "Installing Java"
+
+                            apk add --no-cache openjdk17-jre
+
+                            echo "Checking Java"
+                            which java
+                            java -version
+
+                            echo "Checking Node"
+                            node --version
+                            npm --version
+
+                            echo "Running SonarScanner"
+
+                            npx --yes sonar-scanner \
+                                -Dsonar.projectKey=node-ci-cd \
+                                -Dsonar.sources=. \
+                                -Dsonar.host.url=${SONAR_URL} \
+                                -Dsonar.login=${SONAR_AUTH_TOKEN}
+                        '''
+                    }
+                }
+            }
+        }

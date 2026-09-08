@@ -1,12 +1,12 @@
 pipeline {
-
     agent {
         docker {
             image 'node:24.11.0-alpine'
             args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
         }
     }
-     triggers {
+
+    triggers {
         githubPush()
     }
 
@@ -36,41 +36,6 @@ pipeline {
                 }
             }
         }
-        stage('Static Code Analysis') {
-            environment {
-                SONAR_URL = 'http://13.53.217.85:9000'
-            }
-            steps {
-                withCredentials([
-                    string( credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN' )
-                ]) {
-                    dir('node-ci-cd') {
-                        sh '''
-                            echo "Installing Java"
-
-                            apk add --no-cache openjdk17-jre
-
-                            echo "Checking Java"
-                            which java
-                            java -version
-
-                            echo "Checking Node"
-                            node --version
-                            npm --version
-
-                            echo "Running SonarScanner"
-
-                            npx --yes sonar-scanner \
-                                -Dsonar.projectKey=node-ci-cd \
-                                -Dsonar.sources=. \
-                                -Dsonar.host.url=${SONAR_URL} \
-                                -Dsonar.login=${SONAR_AUTH_TOKEN}
-                        '''
-                    }
-                }
-            }
-        }
-
         stage('Build and Push Docker Image') {
             environment {
                 DOCKER_IMAGE = "suryabhaskarvempala/ultimate-cicd:${BUILD_NUMBER}"
@@ -119,7 +84,7 @@ pipeline {
                         git config user.name "VempalaSuryaBhaskar"
 
                         echo "Updating deployment image:"
-                        sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" manifests/deployment.yml
+                        sed -i -E "s|(suryabhaskarvempala/ultimate-cicd:)[^ ]+|\1${BUILD_NUMBER}|g" manifests/deployment.yml
 
                         echo "Git diff:"
                         git diff
