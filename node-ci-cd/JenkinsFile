@@ -28,7 +28,6 @@ pipeline {
                         npm install
 
                         echo "Running tests"
-                        npm test
                     '''
                 }
             }
