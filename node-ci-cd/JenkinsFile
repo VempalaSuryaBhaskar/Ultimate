@@ -90,7 +90,7 @@ pipeline {
 
                         echo "Updating deployment image..."
 
-                        sed -i -E "s#suryabhaskarvempala/ultimate-cicd:[0-9]+#suryabhaskarvempala/ultimate-cicd:${BUILD_NUMBER}#g" manifests/deployment.yml
+                        sed -i -E "s#suryabhaskarvempala/ultimate-cicd:(replaceImageTag|[0-9]+)#suryabhaskarvempala/ultimate-cicd:${BUILD_NUMBER}#g" manifests/deployment.yml
 
                         echo "Updated deployment:"
                         cat manifests/deployment.yml
