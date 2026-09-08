@@ -84,30 +84,46 @@ pipeline {
             }
           }
         stage('Update Deployment File') {
-              environment {
-                  GIT_REPO_NAME = "Ultimate"
-                  GIT_USER_NAME = "VempalaSuryaBhaskar"
-              }
-              steps {
-                  withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
-                      sh '''
-                          apk add --no-cache git
-                           git --version
-                           
-                           git config user.email "vempalasvdbhaskar@gmail.com"
-                           git config user.name "VempalaSuryaBhaskar"
-                           
-                           sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" manifests/deployment.yml
-                           
-                           git add manifests/deployment.yml
-                           git commit -m "Update deployment image to version ${BUILD_NUMBER}"
-                           
-                           git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git HEAD:main
-                      '''
-                  }
-              }
-          }
-        }
+             environment {
+                 GIT_REPO_NAME = "Ultimate"
+                 GIT_USER_NAME = "VempalaSuryaBhaskar"
+             }
+             steps {
+                 withCredentials([
+                     string(credentialsId: 'github', variable: 'GITHUB_TOKEN')
+                 ]) {
+                     sh '''
+                         apk add --no-cache git
+         
+                         cd "$WORKSPACE"
+         
+                         echo "Current directory:"
+                         pwd
+         
+                         echo "Git status:"
+                         git status
+         
+                         echo "Configuring Git:"
+                         git config user.email "vempalasvdbhaskar@gmail.com"
+                         git config user.name "VempalaSuryaBhaskar"
+         
+                         echo "Updating deployment image:"
+                         sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" manifests/deployment.yml
+         
+                         echo "Git diff:"
+                         git diff
+         
+                         git add manifests/deployment.yml
+         
+                         git commit -m "Update deployment image to version ${BUILD_NUMBER}"
+         
+                         git push \
+                             https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git \
+                             HEAD:main
+                     '''
+                 }
+             }
+         }
 
     post {
 
