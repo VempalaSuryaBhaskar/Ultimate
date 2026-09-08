@@ -100,8 +100,12 @@ pipeline {
                     sh '''
                         apk add --no-cache git
                         cd "$WORKSPACE"
+
                         echo "Current directory:"
                         pwd
+
+                        echo "Adding Git safe directory:"
+                        git config --global --add safe.directory "$WORKSPACE"
 
                         echo "Git status:"
                         git status
