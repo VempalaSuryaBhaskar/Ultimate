@@ -6,8 +6,15 @@ pipeline {
             args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
         }
     }
+     triggers {
+        githubPush()
+    }
+
     stages {
         stage('Checkout') {
+            when {
+                branch 'main'
+            }
             steps {
                 echo 'Checkout completed'
                 sh 'pwd'
