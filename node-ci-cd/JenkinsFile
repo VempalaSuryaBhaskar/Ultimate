@@ -1,12 +1,11 @@
 pipeline {
 
-   agent {
-       docker {
-           image 'node:24.11.0-alpine'
-           args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
-       }
-   }
-
+    agent {
+        docker {
+            image 'node:24.11.0-alpine'
+            args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
     stages {
         stage('Checkout') {
             steps {
@@ -29,101 +28,110 @@ pipeline {
                         npm install
 
                         echo "Running tests"
+                        npm test
                     '''
                 }
             }
         }
-     stage('Static Code Analysis') {
-             environment {
-                 SONAR_URL = 'http://13.53.217.85:9000'
-             }
-             steps {
-                 withCredentials([
-                     string( credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN' )
-                 ]) {
-                     dir('node-ci-cd') {
-                         sh '''
-                             echo "Installing Java"
-
-                             apk add --no-cache openjdk17-jre
-                             echo "Checking Java"        
-                             which java
-                             java -version
-                             echo "Checking Node"
-         
-                             node --version
-                             npm --version
-         
-                             echo "Running SonarScanner"
-         
-                             npx --yes sonar-scanner \
-                            -Dsonar.projectKey=node-ci-cd \
-                            -Dsonar.sources=. \
-                            -Dsonar.host.url=${SONAR_URL} \
-                            -Dsonar.login=${SONAR_AUTH_TOKEN}
-                         '''
-                     }
-                 }
-             }
-         }
-      stage('Build and Push Docker Image') {
+        stage('Static Code Analysis') {
             environment {
-              DOCKER_IMAGE = "suryabhaskarvempala/ultimate-cicd:${BUILD_NUMBER}"
-              // DOCKERFILE_LOCATION = "java-maven-sonar-argocd-helm-k8s/spring-boot-app/Dockerfile"
-              REGISTRY_CREDENTIALS = credentials('docker-cred')
+                SONAR_URL = 'http://13.53.217.85:9000'
             }
             steps {
-              script {
-                  sh 'apk add --no-cache docker-cli' 
-                  sh 'cd node-ci-cd && docker build -t ${DOCKER_IMAGE} .'
-                  def dockerImage = docker.image("${DOCKER_IMAGE}")
-                  docker.withRegistry('https://index.docker.io/v1/', "docker-cred") {
-                      dockerImage.push()
-                  }
-              }
+                withCredentials([
+                    string( credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN' )
+                ]) {
+                    dir('node-ci-cd') {
+                        sh '''
+                            echo "Installing Java"
+
+                            apk add --no-cache openjdk17-jre
+
+                            echo "Checking Java"
+                            which java
+                            java -version
+
+                            echo "Checking Node"
+                            node --version
+                            npm --version
+
+                            echo "Running SonarScanner"
+
+                            npx --yes sonar-scanner \
+                                -Dsonar.projectKey=node-ci-cd \
+                                -Dsonar.sources=. \
+                                -Dsonar.host.url=${SONAR_URL} \
+                                -Dsonar.login=${SONAR_AUTH_TOKEN}
+                        '''
+                    }
+                }
             }
-          }
+        }
+
+        stage('Build and Push Docker Image') {
+            environment {
+                DOCKER_IMAGE = "suryabhaskarvempala/ultimate-cicd:${BUILD_NUMBER}"
+                REGISTRY_CREDENTIALS = credentials('docker-cred')
+            }
+            steps {
+                script {
+                    sh 'apk add --no-cache docker-cli'
+                    sh '''
+                        cd node-ci-cd
+                        docker build -t ${DOCKER_IMAGE} .
+                    '''
+                    def dockerImage = docker.image("${DOCKER_IMAGE}")
+
+                    docker.withRegistry( 'https://index.docker.io/v1/', 'docker-cred' ) {
+                        dockerImage.push()
+                    }
+                }
+            }
+        }
+
         stage('Update Deployment File') {
-             environment {
-                 GIT_REPO_NAME = "Ultimate"
-                 GIT_USER_NAME = "VempalaSuryaBhaskar"
-             }
-             steps {
-                 withCredentials([
-                     string(credentialsId: 'github', variable: 'GITHUB_TOKEN')
-                 ]) {
-                     sh '''
-                         apk add --no-cache git
-         
-                         cd "$WORKSPACE"
-         
-                         echo "Current directory:"
-                         pwd
-         
-                         echo "Git status:"
-                         git status
-         
-                         echo "Configuring Git:"
-                         git config user.email "vempalasvdbhaskar@gmail.com"
-                         git config user.name "VempalaSuryaBhaskar"
-         
-                         echo "Updating deployment image:"
-                         sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" manifests/deployment.yml
-         
-                         echo "Git diff:"
-                         git diff
-         
-                         git add manifests/deployment.yml
-         
-                         git commit -m "Update deployment image to version ${BUILD_NUMBER}"
-         
-                         git push \
-                             https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git \
-                             HEAD:main
-                     '''
-                 }
-             }
-         }
+            environment {
+                GIT_REPO_NAME = "Ultimate"
+                GIT_USER_NAME = "VempalaSuryaBhaskar"
+            }
+            steps {
+                withCredentials([
+                    string( credentialsId: 'github', variable: 'GITHUB_TOKEN' )
+                ]) {
+                    sh '''
+                        apk add --no-cache git
+                        cd "$WORKSPACE"
+                        echo "Current directory:"
+                        pwd
+
+                        echo "Git status:"
+                        git status
+
+                        echo "Configuring Git:"
+                        git config user.email "vempalasvdbhaskar@gmail.com"
+                        git config user.name "VempalaSuryaBhaskar"
+
+                        echo "Updating deployment image:"
+                        sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" manifests/deployment.yml
+
+                        echo "Git diff:"
+                        git diff
+
+                        echo "Adding deployment file:"
+                        git add manifests/deployment.yml
+
+                        echo "Committing changes:"
+                        git commit -m "Update deployment image to version ${BUILD_NUMBER}"
+
+                        echo "Pushing changes:"
+                        git push \
+                            https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git \
+                            HEAD:main
+                    '''
+                }
+            }
+        }
+    }
 
     post {
 
