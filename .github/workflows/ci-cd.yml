@@ -20,6 +20,7 @@ jobs:
 
       - name: Build and Test
         run: |
+          cd node-ci-cd
           npm --version
           node --version
           npm install
