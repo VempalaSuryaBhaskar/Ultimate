@@ -149,7 +149,7 @@ jobs:
 
             sudo docker run -d \
               --name node-app \
-              -p 8080:8080 \
+              -p 3000:3000 \
               "$DOCKER_IMAGE"
 
             echo "Deployment completed"
