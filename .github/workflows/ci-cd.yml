@@ -59,6 +59,7 @@ jobs:
     steps:
       - name: Update GitOps Repository
         run: |
+        
           echo "Cleaning old GitOps repository..."
           rm -rf gitops
 
