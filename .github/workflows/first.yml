@@ -16,5 +16,5 @@ jobs:
             - name: run a one-line script
               run: |
                 echo "Hello, world!"
-                HI
+                echo "Hi!"
         
