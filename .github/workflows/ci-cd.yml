@@ -1,0 +1,94 @@
+name: my-first-workflow
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Test
+        uses: actions/setup-node@v3
+        with:
+          node-version: "24.x"
+
+      - name: Build and Test
+        run: |
+          npm --version
+          node --version
+          npm install
+
+  deploy-image:
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      DOCKER_IMAGE: suryabhaskarvempala/ultimate-cicd:${{ github.run_number }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and Push Docker Image
+        run: |
+          cd node-ci-cd
+          docker build -t suryabhaskarvempala/ultimate-cicd:${{ github.run_number }} .
+          docker push suryabhaskarvempala/ultimate-cicd:${{ github.run_number }}
+
+  update-gitops-repo:
+    runs-on: ubuntu-latest
+    needs: deploy-image
+    env:
+      GIT_REPO_NAME: Ultimate-GitOps
+      GIT_USER_NAME: VempalaSuryaBhaskar
+      GITHUB_TOKEN: ${{ secrets.GITOPS_TOKEN }}
+      IMAGE_TAG: ${{ github.run_number }}
+
+    steps:
+      - name: Update GitOps Repository
+        run: |
+
+          apk add --no-cache git
+
+          echo "Cleaning old GitOps repository..."
+          rm -rf gitops
+
+          echo "Cloning GitOps repository..."
+
+          git clone https://${GITHUB_TOKEN}@github.com/VempalaSuryaBhaskar/Ultimate-GitOps.git gitops
+
+          cd gitops
+
+          echo "Configuring Git..."
+          git config user.email "vempalasvdbhaskar@gmail.com"
+          git config user.name "VempalaSuryaBhaskar"
+
+          echo "Updating deployment image..."
+
+          sed -i -E "s#suryabhaskarvempala/ultimate-cicd:(replaceImageTag|[0-9]+)#suryabhaskarvempala/ultimate-cicd:${IMAGE_TAG}#g" manifests/deployment.yml
+
+          echo "Updated deployment:"
+          cat manifests/deployment.yml
+
+          echo "Git diff:"
+          git diff
+
+          echo "Adding deployment file..."
+          git add manifests/deployment.yml
+
+          echo "Committing changes..."
+          git commit -m "Git hub Actions Commit" || echo "No changes to commit"
+
+          echo "Pushing changes..."
+          git push origin main
